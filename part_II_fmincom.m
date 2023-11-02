@@ -20,7 +20,6 @@ title('delta wave')
 hold off;
 
 
-
 %find the indices for Omicron wave
 omicron_start_end = find(dates >= datetime(2021,10,27) &  dates <= datetime(2022,3,29));
 
@@ -40,7 +39,7 @@ hold off;
 
 %% 
 
-%fmincon for delta
+%fmincon for delta wave--------------------------------------------
 % Initial assumption
 r_infec = 0.1;
 r_reinfec = 0.1;
@@ -100,28 +99,141 @@ cum_cases = cumsum(I_opt)*POP_STL + delta_cases(1);
 cum_deaths = D_opt*POP_STL + delta_deaths(1);
 
 figure;
+tiledlayout(2,2);
+
+nexttile
 hold on;
 plot(delta_dates,cum_cases);
 plot(delta_dates,delta_cases);
-%plot(delta_dates,cum_deaths);
-%plot(delta_dates,delta_deaths);
-legend('Model cum cases','Real');%,'Model death','real death')
+title('Model Cases vs. Real Cases')
+legend('Model Cases','Real Cases')
+hold off;
+
+nexttile
+hold on;
+plot(delta_dates,cum_deaths);
+plot(delta_dates,delta_deaths);
+title('Model Deaths vs. Real Deaths')
+legend('Model Deaths','Real Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(delta_dates,delta_cases);
+plot(delta_dates,delta_deaths);
+title('Delta Wave')
+legend('Cases','Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(delta_dates,cum_cases);
+plot(delta_dates,delta_cases);
+plot(delta_dates,cum_deaths);
+plot(delta_dates,delta_deaths);
+title('Model vs. Real Data')
+legend('Model Cases','Real Cases','Model Deaths','Real Deaths')
 hold off;
 
 
+%print out the matrix A and initial conditions
+disp(A_opt);
+disp(unknowns_opt(5:8));
+
+
+%% ------------------------------------------------------------
+%Omicron Wave
+fun = @(unknowns)ModelCompare(unknowns,omicron_dates,omicron_cases,omicron_deaths);
+
+unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
+
+%graph the results
+x_opt0 = unknowns_opt(5:8);
+xtot = zeros(4,length(omicron_dates));
+
+A_opt = [1-unknowns_opt(1) ,unknowns_opt(3) ,unknowns_opt(2) ,0;
+     unknowns_opt(1) ,1-unknowns_opt(3)-unknowns_opt(4) ,0 ,0;
+     0 ,0 ,1-unknowns_opt(2) ,0;
+     0 ,unknowns_opt(4) ,0 ,1
+    ];
+
+xtot(:,1) = x_opt0;
+
+for t = 2:length(omicron_dates)
+    x_opt0 = A_opt * x_opt0;
+    xtot(:,t) = x_opt0;
+end
+S_opt = xtot(1,:);
+I_opt = xtot(2,:);
+R_opt = xtot(3,:);
+D_opt = xtot(4,:);
+
+
+cum_cases = cumsum(I_opt)*POP_STL + omicron_cases(1);
+cum_deaths = D_opt*POP_STL + omicron_deaths(1);
+
+
+%plotting model and real data and compare them together 
+figure;
+tiledlayout(2,2);
+
+nexttile
+hold on;
+plot(omicron_dates,cum_cases);
+plot(omicron_dates,omicron_cases);
+title('Model Cases vs. Real Cases')
+legend('Model Cases','Real Cases')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,cum_deaths);
+plot(omicron_dates,omicron_deaths);
+title('Model Deaths vs. Real Deaths')
+legend('Model Deaths','Real Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,omicron_cases);
+plot(omicron_dates,omicron_deaths);
+title('omicron Wave')
+legend('Cases','Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,cum_cases);
+plot(omicron_dates,omicron_cases);
+plot(omicron_dates,cum_deaths);
+plot(omicron_dates,omicron_deaths);
+title('Model vs. Real Data')
+legend('Model Cases','Real Cases','Model Deaths','Real Deaths')
+hold off;
+
+%print out the matrix A and initial conditions
+disp(A_opt);
+disp(unknowns_opt(5:8));
+
+
+
+%% 
+%Policy that reduces 25% of the cases and deaths
+%Addding a state Q - quarantine
+
+
+
+
+
+
+
+
+
+
+%% 
 %defining function for fmincon
 function err = ModelCompare(unknowns0, dates, cases_STL, deaths_STL)
 
-%initial guess
-%r_infec0 = 0.1;
-%r_reinfec0 = 0.1;
-%r_recover0 = 0.1;
-%r_death0 = 0.1;
-
-%S0 = 0.75;
-%I0 = 0.1;
-%R0 = 0.1;
-%D0 = 0.05;
 %
 r_infec0 = unknowns0(1,:);
 r_reinfec0 = unknowns0(2,:);
@@ -156,11 +268,10 @@ for i = 2:t
 end
 
 % Extract active counts
-S = x(1,:);
+%S = x(1,:);
 I = x(2,:);
 %R0 = x(3,:);
 D = x(4,:);
-oneVector = ones(1,t);
 
 %convert active data of SIRD into cumulative data
 cum_cases = cumsum(I)*1290497 + cases_STL(1);
@@ -173,5 +284,3 @@ err = cases_err + deaths_err;
 
 end
 %% 
-
-
