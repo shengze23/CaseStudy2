@@ -38,109 +38,110 @@ plot(omicron_dates,omicron_deaths);
 title('omicron wave')
 hold off;
 
-%draft
-r = 0.9914;
-y = 0.001;
-z = 0.0017;
-m = 0.0017;
-j = 0.0017;
-S = 0.49;
-I = 0.013;
-R = 0.49;
-D = 0.0009;
-
-x0 = [S,I,R,D]';
-x = zeros(4,length(delta_dates));
-A = [r ,y ,m ,0;
-     1-r ,z ,0 ,0;
-     0 ,j ,1-m ,0;
-     0 ,1-y-z-j ,0 ,1
-    ];
-x(:,1) = x0;
-for t = 2:length(delta_cases)
-   x(:,t) = A * x(:,t-1);
-end
-I = x(2,:);
-D = x(4,:);
-
-cum_cases = I*POP_STL + delta_cases(1);
-cum_deaths = D + delta_deaths(1);
-
-figure;
-hold on;
-plot(delta_dates,delta_cases);
-plot(delta_dates,cum_cases);
-legend('original','wode')
-hold off;
-
-
 %% 
 
 %fmincon for delta
 % Initial assumption
+r_infec = 0.1;
+r_reinfec = 0.1;
+r_recover = 0.1;
+r_death = 0.1;
 
-r = 0.9725;
-y = 0.0505;
-z = 0.05;
-m = 0.0125;
-j = 0.4905;
-S = 0.63;
-I = 0.138;
-R = 0.1613;
-D = 0;
+S = 0.75;
+I = 0.1;
+R = 0.1;
+D = 0.05;
 
 x0 = [S,I,R,D]';
 
-unknowns = [r,y,z,m,j,S,I,R,D]';
+unknowns = [r_infec,r_reinfec,r_recover,r_death,S,I,R,D]';
 
-A = [1,1,1,1,1,0,0,0,0];
+A = [1,1,1,1,0,0,0,0];
 b = 1;
-Aeq = [0,0,0,0,0,1,1,1,1];
+Aeq = [0,0,0,0,1,1,1,1];
 beq = 1;
 
-%lb = [0.97,0.001,0.3,0.005,0,0.5,0.05,0.04,0.001]'; % Lower bounds
-%ub = [0.999,0.3,0.7,0.2,0.5,1,0.2,0.5,0.1]'; % Upper bounds
-lb = [0.99,0,0,0,0,0,0,0,0]';
-ub = [1,1,1,1,1,1,1,1,1]';
+%lb = [0,0,0,0,0.7,0.2,0,0.05]'; %lower bound
+%ub = [1,1,1,1,0.8,0.8,0.8,0.5]'; %upper bound
+
+lb = [0, 0, 0, 0, 0, 0, 0, 0];
+ub = [1, 1, 1, 1, 1, 1, 1, 1];
 
 options = optimoptions('fmincon','Algorithm','interior-point');
 
 fun = @(unknowns)ModelCompare(unknowns,delta_dates,delta_cases,delta_deaths);
 
-unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub,[],options);
+unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
+
+%graph the results
+x_opt0 = unknowns_opt(5:8);
+xtot = zeros(4,length(delta_dates));
+
+A_opt = [1-unknowns_opt(1) ,unknowns_opt(3) ,unknowns_opt(2) ,0;
+     unknowns_opt(1) ,1-unknowns_opt(3)-unknowns_opt(4) ,0 ,0;
+     0 ,0 ,1-unknowns_opt(2) ,0;
+     0 ,unknowns_opt(4) ,0 ,1
+    ];
+
+xtot(:,1) = x_opt0;
+
+for t = 2:length(delta_dates)
+    x_opt0 = A_opt * x_opt0;
+    xtot(:,t) = x_opt0;
+end
+S_opt = xtot(1,:);
+I_opt = xtot(2,:);
+R_opt = xtot(3,:);
+D_opt = xtot(4,:);
+
+oneVector = ones(1,length(delta_dates));
+
+cum_cases = cumsum(I_opt)*POP_STL + delta_cases(1);
+cum_deaths = D_opt*POP_STL + delta_deaths(1);
+
+figure;
+hold on;
+plot(delta_dates,cum_cases);
+plot(delta_dates,delta_cases);
+%plot(delta_dates,cum_deaths);
+%plot(delta_dates,delta_deaths);
+legend('Model cum cases','Real');%,'Model death','real death')
+hold off;
+
 
 %defining function for fmincon
 function err = ModelCompare(unknowns0, dates, cases_STL, deaths_STL)
 
-r0 = 0.95;
-y0 = 0.01;
-z0 = 0.02;
-m0 = 0.03;
-j0 = 0.01;
-S0 = 0.9;
-I0 = 0.1;
-R0 = 0;
-D0 = 0;
+%initial guess
+%r_infec0 = 0.1;
+%r_reinfec0 = 0.1;
+%r_recover0 = 0.1;
+%r_death0 = 0.1;
+
+%S0 = 0.75;
+%I0 = 0.1;
+%R0 = 0.1;
+%D0 = 0.05;
 %
-%unknowns0 = [r0,y0,z0,m0,j0,S0,I0]';
-r0 = unknowns0(1,:);
-y0 = unknowns0(2,:);
-z0 = unknowns0(3,:);
-m0 = unknowns0(4,:);
-j0 = unknowns0(5,:);
-S0 = unknowns0(6,:);
-I0 = unknowns0(7,:);
-R0 = unknowns0(8,:);
-D0 = unknowns0(9,:);
+r_infec0 = unknowns0(1,:);
+r_reinfec0 = unknowns0(2,:);
+r_recover0 = unknowns0(3,:);
+r_death0 = unknowns0(4,:);
+
+S0 = unknowns0(5,:);
+I0 = unknowns0(6,:);
+R0 = unknowns0(7,:);
+D0 = unknowns0(8,:);
 
 x0 = [S0, I0, R0, D0]';
 
-%transition matrix
-A = [r0 ,y0 ,m0 ,0;
-     1-r0 ,z0 ,0 ,0;
-     0 ,j0 ,1-m0 ,0;
-     0 ,1-y0-z0-j0 ,0 ,1
-    ];
+
+A = [1-r_infec0, r_recover0  ,r_reinfec0 ,0;
+     r_infec0, 1-r_recover0-r_death0,0    ,0;
+     0  ,0            ,1-r_reinfec0 ,0;    
+     0     ,r_death0, 0 ,1];
+
+
 %simulate model
 t = length(dates);
 
@@ -149,24 +150,27 @@ x = zeros(4,t);
 x(:,1) = x0;
 
 for i = 2:t
-    % Model equations  
-    x(:,t) = A*x(:,t-1);
+    % Model equations
+    x0 = A*x0;
+    x(:,i) = x0;
 end
 
 % Extract active counts
-%S0 = x(1,:);
+S = x(1,:);
 I = x(2,:);
 %R0 = x(3,:);
 D = x(4,:);
+oneVector = ones(1,t);
 
 %convert active data of SIRD into cumulative data
-cum_cases = cumsum(I).*1290497 + cases_STL(1);
-cum_deaths = D.*1290497 + deaths_STL(1);
+cum_cases = cumsum(I)*1290497 + cases_STL(1);
+cum_deaths = D*1290497 + deaths_STL(1);
 
 % Calculate error
-cases_err = norm(cum_cases - cases_STL);
-deaths_err = norm(cum_deaths - deaths_STL);
+cases_err = sum((cases_STL - cum_cases).^2);
+deaths_err = sum((deaths_STL - cum_deaths).^2);
 err = cases_err + deaths_err;
+
 end
 %% 
 
