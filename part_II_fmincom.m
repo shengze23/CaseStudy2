@@ -221,13 +221,114 @@ disp(unknowns_opt(5:8));
 %Policy that reduces 25% of the cases and deaths
 %Addding a state Q - quarantine
 
+%50% of population in each state except for deceased will remain at home 
+%so no more interactions will happen between them
+
+%lowering the bound for susceptible population so that only 
+
+%fun = @(unknowns)ModelCompare(unknowns,omicron_dates,omicron_cases,omicron_deaths);
+
+%unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);
+
+%graph the results
+
+% Define the quarantine policy
+quarantine_percentage = 0.5;  % 50%
+quarantine_start_date = datetime(2021, 10, 27);  % Adjust the start date
+quarantine_end_date = datetime(2022, 3, 23);  % Adjust the end date
+
+% Calculate the policy indices based on the date range
+policy_indices = find(omicron_dates >= quarantine_start_date & omicron_dates <= quarantine_end_date);
+
+% Implement the policy by modifying the transition matrix during the policy period
+for i = policy_indices
+    A_opt(1, 5) = A_opt(1, 5) * (1 - quarantine_percentage);
+    A_opt(2, 5) = A_opt(2, 5) * (1 - quarantine_percentage);
+end
 
 
+unknowns_Q = [unknowns_opt;0];
 
+x_opt0 = unknowns_Q(5:9);
+xtot = zeros(5,length(omicron_dates));
+Q = 0.8; % 80% of the population is quarantined
 
+A_opt = [1 - unknowns_opt(1), unknowns_opt(3), unknowns_opt(2), 0,  0;
+         unknowns_opt(1), 1 - unknowns_opt(3) - unknowns_opt(4), 0, 0,  0;
+         0, 0, 1 - unknowns_opt(2), 0,  0;
+         0, unknowns_opt(4), 0, 1,  0;
+         0, 0, 0, 0, 1;
+         ];
 
+policy_indices = find(omicron_dates >= quarantine_start_date & omicron_dates <= quarantine_end_date);
+%for i = policy_indices
+%    A_opt(1, 5) = A_opt(1, 5) * (1 - quarantine_percentage);
+%    A_opt(2, 5) = A_opt(2, 5) * (1 - quarantine_percentage);
+%end
 
+xtot(:,1) = x_opt0;
 
+for t = 2:length(omicron_dates)
+    x_opt0 = A_opt * x_opt0;
+    xtot(:,t) = x_opt0;
+end
+S_opt = xtot(1,:);
+I_opt = xtot(2,:);
+R_opt = xtot(3,:);
+D_opt = xtot(4,:);
+%
+%50 of the Susceptible population will be quarantined, assuming that
+%quarantined population will not die or be infected
+cum_cases = cumsum(I_opt)*POP_STL + omicron_cases(1);
+cum_deaths = D_opt*POP_STL + omicron_deaths(1);
+%
+%plotting the quarantined model
+figure;
+tiledlayout(2,2);
+
+nexttile
+hold on;
+plot(omicron_dates,cum_cases);
+plot(omicron_dates,omicron_cases);
+title('Model Cases vs. Real Cases')
+legend('Model Cases','Real Cases')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,cum_deaths);
+plot(omicron_dates,omicron_deaths);
+title('Model Deaths vs. Real Deaths')
+legend('Model Deaths','Real Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,omicron_cases);
+plot(omicron_dates,omicron_deaths);
+title('omicron Wave')
+legend('Cases','Deaths')
+hold off;
+
+nexttile
+hold on;
+plot(omicron_dates,cum_cases);
+plot(omicron_dates,omicron_cases);
+plot(omicron_dates,cum_deaths);
+plot(omicron_dates,omicron_deaths);
+title('Model vs. Real Data')
+legend('Model Cases','Real Cases','Model Deaths','Real Deaths')
+hold off;
+
+%calculate the percentage of death and cases in the quarantine model 
+
+diff_cases = omicron_cases(length(omicron_dates)) - cum_cases(length(omicron_dates));
+diff_cases_percen = (diff_cases/POP_STL)*100;
+diff_deaths = omicron_deaths(length(omicron_dates)) - cum_deaths(length(omicron_dates));
+diff_deaths_percen = (diff_deaths/POP_STL)*100;
+
+fprintf('The reduced infected population percentage is: %f\n',diff_cases_percen);
+fprintf('The reduced deceased population percentage is: %f\n',diff_deaths_percen);
 
 
 %% 
