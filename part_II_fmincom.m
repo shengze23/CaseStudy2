@@ -39,7 +39,7 @@ hold off;
 
 %% 
 
-%fmincon for delta wave--------------------------------------------
+%fmincon for delta wave=================================================
 % Initial assumption
 r_infec = 0.1;
 r_reinfec = 0.1;
@@ -70,16 +70,16 @@ options = optimoptions('fmincon','Algorithm','interior-point');
 
 fun = @(unknowns)ModelCompare(unknowns,delta_dates,delta_cases,delta_deaths);
 
-unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
+unknowns_opt_D = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
 
 %graph the results
-x_opt0 = unknowns_opt(5:8);
+x_opt0 = unknowns_opt_D(5:8);
 xtot = zeros(4,length(delta_dates));
 
-A_opt = [1-unknowns_opt(1) ,unknowns_opt(3) ,unknowns_opt(2) ,0;
-     unknowns_opt(1) ,1-unknowns_opt(3)-unknowns_opt(4) ,0 ,0;
-     0 ,0 ,1-unknowns_opt(2) ,0;
-     0 ,unknowns_opt(4) ,0 ,1
+A_opt = [1-unknowns_opt_D(1) ,unknowns_opt_D(3) ,unknowns_opt_D(2) ,0;
+     unknowns_opt_D(1) ,1-unknowns_opt_D(3)-unknowns_opt_D(4) ,0 ,0;
+     0 ,0 ,1-unknowns_opt_D(2) ,0;
+     0 ,unknowns_opt_D(4) ,0 ,1
     ];
 
 xtot(:,1) = x_opt0;
@@ -138,23 +138,23 @@ hold off;
 
 %print out the matrix A and initial conditions
 disp(A_opt);
-disp(unknowns_opt(5:8));
+disp(unknowns_opt_D(5:8));
 
 
 %% ------------------------------------------------------------
 %Omicron Wave
 fun = @(unknowns)ModelCompare(unknowns,omicron_dates,omicron_cases,omicron_deaths);
 
-unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
+unknowns_opt_O = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);%,[],options);
 
 %graph the results
-x_opt0 = unknowns_opt(5:8);
+x_opt0 = unknowns_opt_O(5:8);
 xtot = zeros(4,length(omicron_dates));
 
-A_opt = [1-unknowns_opt(1) ,unknowns_opt(3) ,unknowns_opt(2) ,0;
-     unknowns_opt(1) ,1-unknowns_opt(3)-unknowns_opt(4) ,0 ,0;
-     0 ,0 ,1-unknowns_opt(2) ,0;
-     0 ,unknowns_opt(4) ,0 ,1
+A_opt = [1-unknowns_opt_O(1) ,0 ,unknowns_opt_O(2) ,0;
+     unknowns_opt_O(1) ,1-unknowns_opt_O(3)-unknowns_opt_O(4) ,0 ,0;
+     0 ,unknowns_opt_O(3) ,1-unknowns_opt_O(2) ,0;
+     0 ,unknowns_opt_O(4) ,0 ,1
     ];
 
 xtot(:,1) = x_opt0;
@@ -213,7 +213,7 @@ hold off;
 
 %print out the matrix A and initial conditions
 disp(A_opt);
-disp(unknowns_opt(5:8));
+disp(unknowns_opt_O(5:8));
 
 
 
@@ -224,24 +224,16 @@ disp(unknowns_opt(5:8));
 %50% of population in each state except for deceased will remain at home 
 %so no more interactions will happen between them
 
-%lowering the bound for susceptible population so that only 
-
-%fun = @(unknowns)ModelCompare(unknowns,omicron_dates,omicron_cases,omicron_deaths);
-
-%unknowns_opt = fmincon(fun, unknowns, A, b ,Aeq ,beq, lb, ub);
-
-%graph the results
-
-unknowns_Q = [unknowns_opt;0];
+unknowns_Q = [unknowns_opt_O;0];
 
 x_opt0 = unknowns_Q(5:9);
 xtot = zeros(5,length(omicron_dates));
 Q = 0.75; % percentage of the population is quarantined
 
-A_opt = [1 - unknowns_opt(1)*(1-Q), 0, unknowns_opt(2), 0,  0;
-         unknowns_opt(1)*(1-Q), 1 - unknowns_opt(3) - unknowns_opt(4), 0, 0,  0;
-         0, unknowns_opt(3), 1 - unknowns_opt(2), 0,  0;
-         0, unknowns_opt(4)*(1-Q), 0, 1,  0;
+A_opt = [1 - unknowns_opt_O(1)*(1-Q), 0, unknowns_opt_O(2), 0,  0;
+         unknowns_opt_O(1)*(1-Q), 1 - unknowns_opt_O(3) - unknowns_opt_O(4), 0, 0,  0;
+         0, unknowns_opt_O(3), 1 - unknowns_opt_O(2), 0,  0;
+         0, unknowns_opt_O(4)*(1-Q), 0, 1,  0;
          0, 0, 0, 0, 1;
          ];
 
@@ -336,7 +328,7 @@ x0 = [S0, I0, R0, D0]';
 
 A = [1-r_infec0, r_recover0  ,r_reinfec0 ,0;
      r_infec0, 1-r_recover0-r_death0,0    ,0;
-     0  ,0            ,1-r_reinfec0 ,0;    
+     0  ,0  ,1-r_reinfec0 ,0;    
      0     ,r_death0, 0 ,1];
 
 
